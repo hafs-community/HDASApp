@@ -54,6 +54,7 @@ load("ncview/2.1.9")
 load("netcdf-cxx4/4.3.1")
 load("core/rocoto/1.3.5")
 load("prod_util/2.0.14")
+load("cfp/2.0.4")
 
 load("py-setuptools/63.4.3")
 load("py-jinja2/3.1.2")
