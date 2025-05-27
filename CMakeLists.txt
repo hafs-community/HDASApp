@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------- #
-# Application for the GDAS system             #
+# Application for the HDAS system             #
 # ------------------------------------------------------------------------- #
 
 # Check for minimim cmake requirement
@@ -7,7 +7,7 @@ cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 
 find_package(ecbuild 3.5 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild)
 
-project(GDASApp VERSION 1.0.0 LANGUAGES C CXX Fortran )
+project(HDASApp VERSION 1.0.0 LANGUAGES C CXX Fortran )
 # include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -34,19 +34,15 @@ include( ecbuild_bundle )
 set( ENABLE_MPI ON CACHE BOOL "Compile with MPI" )
 
 # Handle user options.
-option(BUILD_GDASBUNDLE "Build GDAS Bundle" ON)
+option(BUILD_GDASBUNDLE "Build HDAS Bundle" ON)
 option(CLONE_JCSDADATA "Clone JCSDA test data repositories" OFF)
 option(WORKFLOW_TESTS "Include global-workflow dependent tests" OFF)
 
 # Build GDAS-managed JEDI executables
 if( BUILD_GDASBUNDLE )
   find_package( fv3jedi REQUIRED )
-  find_package( soca REQUIRED )
   add_subdirectory( mains )
 endif()
 
 # Install utility scripts.
 add_subdirectory(ush)
-
-# Include testing.
-add_subdirectory(test)

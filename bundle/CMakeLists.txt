@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------- #
-# JEDI GDAS Bundle             #
+# JEDI HDAS Bundle             #
 # ------------------------------------------------------------------------- #
 
 # Check for minimim cmake requirement
@@ -7,7 +7,7 @@ cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 
 find_package(ecbuild 3.5 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild)
 
-project(GDAS-bundle VERSION 1.0.0 LANGUAGES C CXX Fortran )
+project(HDAS-bundle VERSION 1.0.0 LANGUAGES C CXX Fortran )
 
 include(GNUInstallDirs)
 enable_testing()
@@ -32,7 +32,7 @@ include( ecbuild_bundle )
 set( ENABLE_MPI ON CACHE BOOL "Compile with MPI" )
 
 # Handle user options.
-option(BUILD_GDASBUNDLE "Build GDAS Bundle" ON)
+option(BUILD_GDASBUNDLE "Build HDAS Bundle" ON)
 option(CLONE_JCSDADATA "Clone JCSDA test data repositories" OFF)
 option(WORKFLOW_TESTS "Include global-workflow dependent tests" OFF)
 option(BUILD_REGRID_STATES "Build regrid states land DA utility" ON)
@@ -55,7 +55,7 @@ list( APPEND CMAKE_INSTALL_RPATH ${CMAKE_CURRENT_BINARY_DIR}/fv3 )
 ecbuild_bundle_initialize()
 
 # Build bundle source code.
-if(BUILD_GDASBUNDLE)
+if(BUILD_HDASBUNDLE)
 
 # jedi-cmake
   ecbuild_bundle( PROJECT jedicmake SOURCE "../sorc/jedicmake" )
@@ -80,15 +80,6 @@ if(BUILD_GDASBUNDLE)
   #ecbuild_bundle( PROJECT crtm GIT "https://github.com/JCSDA/crtm.git"   TAG v2.4.1-jedi.1 )
   ecbuild_bundle( PROJECT crtm SOURCE "../sorc/crtm" )
 
-# Build GSI-B
-  option(BUILD_GSIBEC "Build GSI-B" OFF)
-  if(BUILD_GSIBEC)
-    ecbuild_bundle( PROJECT gsibec SOURCE "../sorc/gsibec" )
-  endif()
-
-# Gibbs seawater
-  ecbuild_bundle( PROJECT gsw SOURCE "../sorc/gsw" )
-
 # EMC BUFR-query library
   ecbuild_bundle( PROJECT bufr-query SOURCE "../sorc/bufr-query" )
 
@@ -101,7 +92,7 @@ if(BUILD_GDASBUNDLE)
   option(ENABLE_UFO_DATA "Obtain ufo test data from ufo-data repository (vs tarball)" ON)
   ecbuild_bundle( PROJECT ufo SOURCE "../sorc/ufo" )
 
-# FV3 dynamical core
+# FMS and FV3 dynamical core
   include(fv3-interface.cmake)
   ecbuild_bundle( PROJECT fv3 SOURCE "../sorc/fv3" )
 
@@ -109,9 +100,6 @@ if(BUILD_GDASBUNDLE)
   ecbuild_bundle( PROJECT femps SOURCE "../sorc/femps" )
   option(ENABLE_FV3_JEDI_DATA "Obtain fv3-jedi test data from fv3-jedi-data repository (vs tarball)" ON)
   ecbuild_bundle( PROJECT fv3-jedi SOURCE "../sorc/fv3-jedi" )
-
-# SOCA associated repositories
-  ecbuild_bundle( PROJECT soca SOURCE "../sorc/soca" )
 
   # Build JEDI/DA or other peripherals
   ecbuild_bundle( PROJECT gdas-utils SOURCE "../utils" )
@@ -123,25 +111,21 @@ if(BUILD_GDASBUNDLE)
     ecbuild_bundle( PROJECT iodaconv SOURCE "../sorc/iodaconv" )
   endif()
 
-# Land associated repositories
-  ecbuild_bundle( PROJECT land-imsproc SOURCE "../sorc/land-imsproc" )
-  ecbuild_bundle( PROJECT land-jediincr SOURCE "../sorc/land-jediincr" )
-
-# GDASApp
-  ecbuild_bundle( PROJECT gdas SOURCE "../")
+# HDASApp
+  ecbuild_bundle( PROJECT hdas SOURCE "../")
 
 # ioda, ufo, fv3-jedi, and saber test data
 #---------------------------------
   if(CLONE_JCSDADATA)
 
-   set(JCSDA_DATA_ROOT "$ENV{GDASAPP_TESTDATA}/jcsda")
+   set(JCSDA_DATA_ROOT "$ENV{HDASAPP_TESTDATA}/jcsda")
    ecbuild_bundle( PROJECT ioda-data SOURCE "${JCSDA_DATA_ROOT}/ioda-data" )
    ecbuild_bundle( PROJECT ufo-data SOURCE "${JCSDA_DATA_ROOT}/ufo-data" )
    ecbuild_bundle( PROJECT fv3-jedi-data SOURCE "${JCSDA_DATA_ROOT}/fv3-jedi-data" )
 
   endif(CLONE_JCSDADATA)
 
-endif(BUILD_GDASBUNDLE)
+endif(BUILD_HDASBUNDLE)
 
 # Finalize bundle
 # ---------------

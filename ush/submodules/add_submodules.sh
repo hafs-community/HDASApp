@@ -13,7 +13,6 @@ saber
 ioda
 ufo
 fv3-jedi
-soca
 iodaconv
 "
 

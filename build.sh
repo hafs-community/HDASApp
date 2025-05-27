@@ -73,7 +73,7 @@ done
 
 case ${BUILD_TARGET} in
   hera | orion | hercules | wcoss2 | noaacloud | gaeac5 | gaeac6 )
-    echo "Building GDASApp on $BUILD_TARGET"
+    echo "Building HDASApp on $BUILD_TARGET"
     source $dir_root/ush/module-setup.sh
     module use $dir_root/modulefiles
     module load GDAS/$BUILD_TARGET.$COMPILER
@@ -81,10 +81,10 @@ case ${BUILD_TARGET} in
     module list
     ;;
   $(hostname))
-    echo "Building GDASApp on $BUILD_TARGET"
+    echo "Building HDASApp on $BUILD_TARGET"
     ;;
   *)
-    echo "Building GDASApp on unknown target: $BUILD_TARGET"
+    echo "Building HDASApp on unknown target: $BUILD_TARGET"
     ;;
 esac
 
@@ -113,11 +113,12 @@ if [ -d "$dir_root/bundle/fix/test-data-release/" ]; then rm -rf $dir_root/bundl
 if [ -d "$dir_root/bundle/test-data-release/" ]; then rm -rf $dir_root/bundle/test-data-release/; fi
 mkdir -p $dir_root/bundle/fix/test-data-release/
 mkdir -p $dir_root/bundle/test-data-release/
-ln -sf $GDASAPP_TESTDATA/crtm $dir_root/bundle/fix/test-data-release/crtm
-ln -sf $GDASAPP_TESTDATA/crtm $dir_root/bundle/test-data-release/crtm
+ln -sf $HDASAPP_TESTDATA/crtm $dir_root/bundle/fix/test-data-release/crtm
+ln -sf $HDASAPP_TESTDATA/crtm $dir_root/bundle/test-data-release/crtm
 
 # Configure
 echo "Configuring ... `date`"
+
 set -x
 cmake \
   ${CMAKE_OPTS:-} \
@@ -130,7 +131,7 @@ set -x
 if [[ $BUILD_JCSDA == 'YES' ]]; then
   make -j ${BUILD_JOBS:-8} VERBOSE=$BUILD_VERBOSE
 else
-  builddirs="gdas iodaconv land-imsproc land-jediincr gdas-utils bufr-query da-utils"
+  builddirs="gdas fv3-jedi iodaconv bufr-query"
   for b in $builddirs; do
     cd $b
     set +x      
