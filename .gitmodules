@@ -37,6 +37,10 @@
   path = sorc/femps
   url = https://github.com/jcsda/femps.git
   branch = develop
+[submodule "sorc/fv3-jedi-lm"]
+  path = sorc/fv3-jedi-lm
+  url = https://github.com/jcsda/fv3-jedi-linearmodel.git
+  branch = develop
 [submodule "sorc/fv3-jedi"]
   path = sorc/fv3-jedi
   url = https://github.com/jcsda/fv3-jedi.git
