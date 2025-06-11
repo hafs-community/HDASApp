@@ -26,6 +26,7 @@ load("netcdf-c/4.9.2")
 load("nccmp/1.9.0.1")
 load("netcdf-fortran/4.6.1")
 load("nco/5.1.6")
+load("nco/5.1.6")
 load("parallelio/2.6.2")
 load("wget/1.21.1")
 load("boost/1.84.0")
@@ -86,9 +87,9 @@ setenv("GDASAPP_TESTDATA","/work2/noaa/da/role-da/GDASApp/testdata")
 setenv("GDASAPP_UNIT_TEST_DATA_PATH", "/work2/noaa/da/role-da/GDASApp/unittestdata")
 prepend_path("PATH","/apps/contrib/NCEP/libs/hpc-stack/intel-2018.4/prod_util/1.2.2/bin")
 
-execute{cmd="ulimit -s unlimited",modeA={"load"}}
+-- execute{cmd="ulimit -s unlimited",modeA={"load"}}
 
 whatis("Name: ".. pkgName)
-whatis("Version: ".. pkgVersion)
+-- whatis("Version: ".. pkgVersion)
 whatis("Category: GDASApp")
 whatis("Description: Load all libraries needed for GDASApp")
