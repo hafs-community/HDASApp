@@ -62,3 +62,7 @@
 [submodule "sorc/wxflow"]
 	path = sorc/wxflow
 	url = https://github.com/NOAA-EMC/wxflow.git
+[submodule "parm/jcb-algorithms"]
+	path = parm/jcb-algorithms
+	url = https://github.com/noaa-emc/jcb-algorithms
+        branch = develop
