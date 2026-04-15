@@ -8,13 +8,12 @@
          obsdataout:
            engine:
              type: H5File
-             obsfile: hofx/diag_conventional_air_drpsndq_t{{HH}}z.nc
+             obsfile: hofx/diag_conventional_air_drpsnd_137q_t{{HH}}z.nc
              allow overwrite: true
          io pool:
-           max pool size: {{TOTAL_TASKS}}
+           max pool size: {{POOL_SIZE}}
          observed variables: [specificHumidity]
          simulated variables: [specificHumidity]
- 
        obs operator:
          name: Composite
          components:
@@ -25,10 +24,8 @@
            interpolation method: log-linear
            variables: 
            - name: [specificHumidity]
- 
        obs error:
          covariance model: diagonal
- 
        obs pre filters:          
        - filter: Domain Check
          apply at iterations: 0,1
@@ -39,7 +36,6 @@
            maxvalue: {{MAX_LAT}}
          action:
            name: reduce obs space
- 
        - filter: Domain Check
          apply at iterations: 0,1
          where:
@@ -49,7 +45,6 @@
            maxvalue: {{MAX_LON}}
          action:
            name: reduce obs space
- 
        # Reject all obs with QualityMarker > 3
        - filter: RejectList
          apply at iterations: 0,1
@@ -66,7 +61,6 @@
          where operator: or
          action: 
            name: reduce obs space
- 
        # Time window filter
        - filter: Domain Check
          apply at iterations: 0,1
@@ -77,7 +71,6 @@
              maxvalue:  10800
          action:
            name: reduce obs space
- 
        obs prior filters:  
        # Regional Domain Check
        - filter: Bounds Check
@@ -87,7 +80,6 @@
          - name: GeoVaLs/observable_domain_mask
            minvalue: 0.0
            maxvalue: 0.5
-         
        # Initial errror assignment
        - filter: Perform Action
          filter variables:
@@ -98,7 +90,6 @@
          action:
            name: assign error
            error parameter: 0.07
- 
        ## error inflation if observation QM is 3 or 7 
        - filter: Perform Action
          filter variables:
@@ -110,8 +101,6 @@
          action:
            name: inflate error
            inflation factor: 1.2
- 
- 
        # Observation Post Filters (QC)
        # -------------------------------
        obs post filters:
@@ -125,7 +114,6 @@
              options:
                variables: [ObsValue/specificHumidity, HofX/specificHumidity]
                coefs: [1.0, -1.0]
- 
        - filter: Perform Action
          filter variables:
          - name: specificHumidity
@@ -138,7 +126,6 @@
                absolute value: [true]
                total coefficient: 0.75
                intercept: 0.0003
- 
        ##  error inflation based on pressure check (setupq.f90)
        - filter: Perform Action
          filter variables:
@@ -154,7 +141,6 @@
                variable: specificHumidity
                inflation factor: 8.0
                request_saturation_specific_humidity_geovals: true
- 
        # Create temporary ObsErrorData
        - filter: Variable Assignment
          apply at iterations: 0,1
@@ -181,7 +167,6 @@
          - variable:
              name: ObsErrorData/specificHumidity
            value: is_valid
- 
        # Set ObsError set "error parameter" if > "min value"
        - filter: Perform Action
          apply at iterations: 0,1
@@ -197,7 +182,6 @@
          - variable:
              name: ObsErrorData/specificHumidity
            value: is_valid
- 
        # Gross Error Check
        - filter: Background Check
          apply at iterations: 0,1
@@ -209,7 +193,6 @@
            is_not_in: 3
          action:
            name: reject
- 
        # Gross Error Check
        - filter: Background Check
          apply at iterations: 0,1
@@ -221,7 +204,6 @@
            is_in: 3
          action:
            name: reject
- 
        # Re-assign err ObsErrorData <--- TempObsErrorData after gross error check.
        - filter: Perform Action
          apply at iterations: 0,1
@@ -234,3 +216,6 @@
          - variable:
              name: TempObsErrorData/specificHumidity
            value: is_valid
+       obs localizations:
+       - localization method: Horizontal Gaspari-Cohn
+         lengthscale: 450e3

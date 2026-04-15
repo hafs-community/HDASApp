@@ -12,10 +12,10 @@
          obsdataout:
            engine:
              type: H5File
-             obsfile:  hofx/diag_conventional_air_carw_t{{HH}}z.nc
+             obsfile:  hofx/diag_conventional_air_aircar_233_t{{HH}}z.nc
              allow overwrite: true
          io pool:
-           max pool size: {{TOTAL_TASKS}}
+           max pool size: {{POOL_SIZE}}
          observed variables: [windEastward, windNorthward]
          simulated variables: [windEastward, windNorthward]
        obs operator:
@@ -27,13 +27,10 @@
          variables:
          - name: windEastward
          - name: windNorthward
- 
        linear obs operator:
          name: VertInterp
- 
        obs error:
          covariance model: diagonal
- 
        obs pre filters:
        - filter: Domain Check
          apply at iterations: 0,1
@@ -44,7 +41,6 @@
              maxvalue: {{MAX_LAT}}
          action:
             name: reduce obs space
- 
        - filter: Domain Check
          apply at iterations: 0,1
          where:
@@ -54,7 +50,6 @@
              maxvalue: {{MAX_LON}}
          action:
             name: reduce obs space
- 
        # Reject all obs with QualityMarker > 3
        - filter: RejectList
          apply at iterations: 0,1
@@ -72,7 +67,6 @@
          where operator: or
          action:
            name: reduce obs space
- 
        obs post filters:
        # Regional Domain Check
        - filter: Bounds Check
@@ -98,7 +92,6 @@
            name: reject
  #        action:
  #          name: reduce obs space
- 
        - filter: Domain Check
          apply at iterations: 0,1
          where:
@@ -106,7 +99,6 @@
                name: MetaData/timeOffset
              minvalue: -10800.0
              maxvalue: 10800.0
- 
        # ----------------------------------
        # windEastward
        # ----------------------------------
@@ -207,7 +199,6 @@
          where:
          - variable: MetaData/pressure
            maxvalue: 5000.0
- 
        # Bounds Check (ObsError)
  #      - filter: Bounds Check
  #        filter variables:
@@ -218,7 +209,6 @@
  #        minvalue: 0.0
  #        action:
  #          name: reduce obs space
- 
        # Bounds check (ObsValue)
        - filter: Bounds Check
          apply at iterations: 0,1
@@ -250,7 +240,6 @@
          action:
            name: reject
          defer to post: true
- 
        # Gross Error Check (windNorthward)
        - filter: Background Check
          apply at iterations: 0,1
@@ -289,7 +278,6 @@
          action:
            name: reject
          defer to post: true
- 
        # Gross Error Check (windNorthward): cgross*0.7 if QualityMarker=3
        - filter: Background Check
          apply at iterations: 0,1
@@ -309,3 +297,6 @@
          action:
            name: reject
          defer to post: true
+       obs localizations:
+       - localization method: Horizontal Gaspari-Cohn
+         lengthscale: 450e3
