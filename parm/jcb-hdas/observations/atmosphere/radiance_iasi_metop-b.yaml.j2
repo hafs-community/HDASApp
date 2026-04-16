@@ -1,5 +1,8 @@
      - obs space:
          name: IASI METOP-B
+         distribution:
+           name: "{{distribution_type}}"
+           halo size: 500e3
          obsdatain:
            engine:
              type: H5File
@@ -137,7 +140,7 @@
            name: reduce obs space
        # Observation Post Filters (QC)
        # -----------------------------
-       obs post filters:
+       obs prior filters:
        # Online Domain check
        - filter: Bounds Check
          filter variables:
@@ -148,6 +151,7 @@
            flag all filter variables if any test variable is out of bounds: true
            minvalue: 0.0
            maxvalue: 0.5
+       obs post filters:
        # Step 6: Wavenumber Check
        - filter: Perform Action
          filter variables:

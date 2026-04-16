@@ -1,5 +1,8 @@
      - obs space:
          name: conventional_radar_vadwnd
+         distribution:
+           name: "{{distribution_type}}"
+           halo size: 500e3
          obsdatain:
            engine:
              type: H5File
@@ -77,7 +80,6 @@
              maxvalue:  10800
          action:
            name: reduce obs space
-       # Observation Prior Filters (QC)
        obs post filters:
        # Regional Domain Check
        - filter: Bounds Check
@@ -88,6 +90,7 @@
          - name: GeoVaLs/observable_domain_mask
            minvalue: 0.0
            maxvalue: 0.5
+       # Observation Prior Filters (QC)
        # Initial error assignment
        - filter: Perform Action
          filter variables:

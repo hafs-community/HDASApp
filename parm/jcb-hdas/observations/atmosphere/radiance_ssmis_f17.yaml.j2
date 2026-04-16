@@ -1,5 +1,8 @@
      - obs space:
          name: SSMIS F17
+         distribution:
+           name: "{{distribution_type}}"
+           halo size: 500e3
          obsdatain:
            engine:
              type: H5File
@@ -173,9 +176,7 @@
                                      3.00, 2.40, 1.27, 1.44, 3.00,
                                      1.34, 1.74, 3.75, 3.00, 3.00,
                                      2.00, 6.40, 1.00, 1.00]
-       # Observation Post Filters (QC)
-       # ------------------------------
-       obs post filters:
+       obs prior filters:
        - filter: Bounds Check
          filter variables:
          - name: brightnessTemperature
@@ -185,6 +186,9 @@
            flag all filter variables if any test variable is out of bounds: true
            minvalue: 0.0
            maxvalue: 0.5
+       # Observation Post Filters (QC)
+       # ------------------------------
+       obs post filters:
        # Step 2: Gross check over water-dominant area
        - filter: Background Check
          filter variables:
