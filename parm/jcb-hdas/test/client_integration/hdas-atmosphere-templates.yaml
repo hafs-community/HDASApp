@@ -32,7 +32,7 @@ driver_file: atmosphere_driver__ALGORITHM_
 output_file: atmosphere_output__ALGORITHM_
 model_file: atmosphere_model_pseudo
 initial_condition_file: atmosphere_background
-background_error_file: atmosphere_background_error__ALGORITHM_
+background_error_file: atmosphere_background_error__ALGORITHMCOV_
 
 
 # Global analysis things
