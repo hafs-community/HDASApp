@@ -89,19 +89,19 @@
          action:
            name: reject
 
-      #2. metop below 8 km
-      - filter: Bounds Check
-        filter variables:
-        - name: bendingAngle
-        where:
-        - variable:
-            name: MetaData/satelliteIdentifier
-          is_in: 3-5
-        test variables:
-        - name: MetaData/impactHeightRO
-        minvalue: 8000.1
-        action:
-          name: reject
+       #2. metop below 8 km
+       - filter: Bounds Check
+         filter variables:
+         - name: bendingAngle
+         where:
+         - variable:
+             name: MetaData/satelliteIdentifier
+           is_in: 3-5
+         test variables:
+         - name: MetaData/impactHeightRO
+         minvalue: 8000.1
+         action:
+           name: reject
  
        # Observation Post Filters (QC)
        # ----------------------------------------
