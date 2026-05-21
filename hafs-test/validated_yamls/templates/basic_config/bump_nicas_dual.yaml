@@ -19,7 +19,7 @@ background:
   read_from_file: 1
   datetime: _ANALYSISDATE_
   filetype: fms restart
-  datapath: bkg
+  datapath: ensemble_data/mem001
   <<: *fv3file_names
   state variables: &vars_state
   - eastward_wind
@@ -34,18 +34,6 @@ background:
   - cloud_liquid_water
   - ozone_mass_mixing_ratio
   - geopotential_height_times_gravity_at_surface
-  - slmsk
-  - sheleg
-  - skin_temperature_at_surface
-  - vtype
-  - stype
-  - vfrac
-  - stc
-  - soilMoistureVolumetric
-  - totalSnowDepth
-  - eastward_wind_at_surface
-  - northward_wind_at_surface
-  - f10m
   field io names: &field_io_names
     eastward_wind: ua
     northward_wind: va
