@@ -82,6 +82,8 @@ gradient_norm_reduction: 1e-3
 ninner: 50
 nesttilestrnc: _NESTTILESTRNC_
 nesttilestrsfc: _NESTTILESTRSFC_
+nesttilestrnc_ens: _NESTTILESTRNCENS_
+nesttilestrsfc_ens: _NESTTILESTRSFCENS_
 input_hafs_ens_nml_path: _INPUT_HAFS_ENS_NML_
 input_hafs_nml_path: _INPUT_HAFS_NML_
 

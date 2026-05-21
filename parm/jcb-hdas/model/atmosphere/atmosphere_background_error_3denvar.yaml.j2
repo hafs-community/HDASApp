@@ -7,10 +7,10 @@ members from template:
       state variables: {{state_variables}}
       field io names: *field_io_names
       datapath: {{ atmosphere_background_ensemble_path }}
-      filename_core: {{atmosphere_background_time_prefix6}}fv_core.res{{nesttilestrnc}}
-      filename_trcr: {{atmosphere_background_time_prefix6}}fv_tracer.res{{nesttilestrnc}}
-      filename_sfcd: {{atmosphere_background_time_prefix6}}sfc_data{{nesttilestrsfc}}
-      filename_sfcw: {{atmosphere_background_time_prefix6}}fv_srf_wnd.res{{nesttilestrnc}}
+      filename_core: {{atmosphere_background_time_prefix6}}fv_core.res{{nesttilestrnc_ens}}
+      filename_trcr: {{atmosphere_background_time_prefix6}}fv_tracer.res{{nesttilestrnc_ens}}
+      filename_sfcd: {{atmosphere_background_time_prefix6}}sfc_data{{nesttilestrsfc_ens}}
+      filename_sfcw: {{atmosphere_background_time_prefix6}}fv_srf_wnd.res{{nesttilestrnc_ens}}
       filename_cplr: {{atmosphere_background_time_prefix6}}coupler.res
   pattern: "%mem%"
   nmembers: {{atmosphere_number_ensemble_members}}
