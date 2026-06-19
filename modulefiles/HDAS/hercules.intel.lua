@@ -14,6 +14,7 @@ load("stack-intel-oneapi-mpi/2021.13")
 load("intel-oneapi-mkl/2024.2.1")
 load("stack-python/3.11.7")
 
+load("zstd/1.5.2")
 load("cmake/3.27.9")
 load("gettext/0.21.1")
 load("curl/8.10.1")
@@ -88,8 +89,6 @@ setenv('MPIEXEC_NPROC', mpinproc)
 setenv("CRTM_FIX","/work2/noaa/da/role-da/GDASApp/fix/crtm/2.4.0")
 setenv("HDASAPP_TESTDATA","/work2/noaa/da/role-da/GDASApp/testdata")
 setenv("HDASAPP_UNIT_TEST_DATA_PATH", "/work2/noaa/da/role-da/GDASApp/unittestdata")
-
-execute{cmd="ulimit -s unlimited",modeA={"load"}}
 
 whatis("Name: ".. pkgName)
 whatis("Version: ".. tostring(pkgVersion))
