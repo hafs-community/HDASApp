@@ -132,7 +132,6 @@ def thin_vad_obs(ds, station_filter=None, vad_near_analtime=False):
 
         # TSB FILTER (use dumpReportSubType)
         tsb = all_vars.get(('MetaData', 'dumpReportSubType'), None)
-        print('JING am I here')
         if tsb is None:
             raise RuntimeError("Cannot find dumpReportSubType in MetaData; TSB test cannot be applied.")
 
