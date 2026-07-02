@@ -184,11 +184,11 @@
          maxvalue: 1.3
          #max_exclusive: true
          actions:
-           - name: set
-             flag: ClearSkyStdCheck
-             ignore: rejected observations
-           #- name: reject
-           - name: reduce obs space
+         - name: set
+           flag: ClearSkyStdCheck
+           ignore: rejected observations
+         #- name: reject
+         - name: reduce obs space
        # ---------------------------------------------------------------------------------------------------
        # Step 4 :  BT range check (sanity check)
        # ----------------------------------------------------------------------------------------------------
@@ -235,10 +235,10 @@
          # Spatiotemporal Selection
          distance_norm: maximum
          #distance_norm: geodesic
-         seed_time: '{{atmosphere_background_time_iso }}'
-         time_mesh: '{{window_length}}'
-         time_min: '{{window_begin}}'
-         time_max: '{{window_end}}'
+         seed_time: "{{atmosphere_background_time_iso6}}"
+         time_mesh: 'PT06H'
+         time_min: "{{atmosphere_background_time_iso}}"
+         time_max: "{{atmosphere_background_time_iso9}}"
          priority_variable: DerivedMetaData/thinning_priority
          actions:
          - name: set
@@ -345,9 +345,9 @@
            minvalue: 0.0
            maxvalue: 0.5
          actions:
-           - name: set
-             flag: GeoDomainCheck
-           - name: reject
+         - name: set
+           flag: GeoDomainCheck
+         - name: reject
        # ---------------------------------------------------------------------------------------------------
        # Step 11 :  hofx/BT range check (sanity check)
        # Toss data if the hofx is missing or outside of range
@@ -460,10 +460,10 @@
              error parameter vector: *radiance_abi_g18_obserr
          maxvalue: 1.0e-12
          actions:
-           - name: set
-             flag: CloudDetectMinResidualIR
-             ignore: rejected observations
-           - name: reject
+         - name: set
+           flag: CloudDetectMinResidualIR
+           ignore: rejected observations
+         - name: reject
        # ---------------------------------------------------------------------------------------------------------------------
        # Step 15: Second StdDev check: Scene Consistency Check based on StdDev of ch13 (10.8 micron) for chanenel 7, 10-16
        # This step would remove more data for channel 10
@@ -479,10 +479,10 @@
            maxvalue: 0.5
            max_exclusive: true
          actions:
-           - name: set
-             flag: ClearSkyStdCheck_channel_10
-             ignore: rejected observations
-           - name: reject
+         - name: set
+           flag: ClearSkyStdCheck_channel_10
+           ignore: rejected observations
+         - name: reject
        # -------------------------------------------------------------------------------------------------------------
        # Step 16: Observation Error inflation: adjust error for channels 8-10 according to ch8 BT standard deviation
        # --------------------------------------------------------------------------------------------------------------
@@ -568,10 +568,10 @@
              obserr_dtempf: [0.50, 2.00, 4.00, 2.00, 4.00]
          maxvalue: 1.0e-12
          actions:
-           - name: set
-             flag: NearSSTRetCheckIR
-             ignore: rejected observations
-           - name: reject
+         - name: set
+           flag: NearSSTRetCheckIR
+           ignore: rejected observations
+         - name: reject
        # ----------------------------------------------------------------------------------------------------------
        # Step 18: Error inflation: Surface Jacobians Check
        # This obsFunction is designed to compute observation error inflation factor for brightness temperature as
@@ -651,10 +651,10 @@
          minvalue: -0.75
          min_exclusive: true
          actions:
-           - name: set
-             flag: SplitWindowCheck_channel_10
-             ignore: rejected observations
-           - name: reject
+         - name: set
+           flag: SplitWindowCheck_channel_10
+           ignore: rejected observations
+         - name: reject
 
        # ----------------------------------
        # Step 21: Gross check
@@ -667,7 +667,7 @@
          - name: ObsFunction/ObsErrorBoundIR
            channels: *radiance_abi_g18_channels
            options:
-             sensor: radiance_abi_g18
+             sensor: abi_g18
              channels: *radiance_abi_g18_channels
              obserr_bound_latitude:
                name: ObsFunction/ObsErrorFactorLatRad
@@ -679,13 +679,13 @@
                channels: *radiance_abi_g18_channels
                options:
                  channels: *radiance_abi_g18_channels
-             obserr_bound_max: [{{ get_satellite_variable(observation_from_jcb, "ermax") }}]
-             error parameter vector: *radiance_abi_g18_error
+             obserr_bound_max: &radiance_abi_g18_obserrmax [2.5,4.0,4.0,3.5,2.5,2.5,2.5,2.5,2.5,2.5]
+             error parameter vector: *radiance_abi_g18_obserr
          actions:
-           - name: set
-             flag: GrossCheck
-             ignore: rejected observations
-           - name: reject
+         - name: set
+           flag: GrossCheck
+           ignore: rejected observations
+         - name: reject
 
        # -------------------------------
        # Step 22: Useflag Check
@@ -702,10 +702,10 @@
              use_flag: *radiance_abi_g18_use_flag
          minvalue: 1.0e-12
          actions:
-           - name: set
-             flag: UseflagCheck
-             ignore: rejected observations
-           - name: reject
+         - name: set
+           flag: UseflagCheck
+           ignore: rejected observations
+         - name: reject
 
        obs localizations:
        - localization method: Horizontal Gaspari-Cohn

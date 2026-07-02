@@ -103,6 +103,36 @@
          action:
            name: reduce obs space
        # ------------------------
+       - filter: Create Diagnostic Flags
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_atms_n21_channels
+         flags:
+         - name: ScanEdgeRemoval
+           initial value: false
+           force reinitialization: false
+         - name: Thinning
+           initial value: false
+           force reinitialization: false
+         - name: CLWRetrievalCheck
+           initial value: false
+           force reinitialization: false
+         - name: WindowChannelExtremeResidual
+           initial value: false
+           force reinitialization: false
+         - name: HydrometeorCheck
+           initial value: false
+           force reinitialization: false
+         - name: GrossCheck
+           initial value: false
+           force reinitialization: false
+         - name: InterChannelConsistency
+           initial value: false
+           force reinitialization: false
+         - name: UseflagCheck
+           initial value: false
+           force reinitialization: false
+       # ------------------------
        obs prior filters:
        # Zero Atmospheric clouds in CRTM where water_area_fraction < 0.99
        - filter: Variable Assignment
@@ -292,9 +322,9 @@
              name: MetaData/sensorScanPosition
            is_in: 7-90
          actions:
-           - name: set
-             flag: ScanEdgeRemoval
-           - name: reject
+         - name: set
+           flag: ScanEdgeRemoval
+         - name: reject
        # Step 1A: CLW Retrieval Check (observation_based)
        - filter: Bounds Check
          filter variables:

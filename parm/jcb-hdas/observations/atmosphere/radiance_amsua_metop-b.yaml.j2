@@ -107,7 +107,6 @@
                      name: GeoVaLs/water_area_fraction
                    maxvalue: 0.99
                  value: 1 # Will zero clouds by default
-       obs post filters:
        - filter: Bounds Check
          filter variables:
          - name: brightnessTemperature
@@ -117,15 +116,16 @@
            flag all filter variables if any test variable is out of bounds: true
            minvalue: 0.0
            maxvalue: 0.5
+       obs post filters:
        # Data Thinning
        - filter: Gaussian Thinning
          horizontal_mesh: 45
          use_reduced_horizontal_grid: true
          distance_norm: geodesic
          actions:
-           - name: set
-             flag: Thinning
-           - name: reject
+         - name: set
+           flag: Thinning
+         - name: reject
         #Toss data if the hofx is missing or outside of range
        - filter: Domain Check
          filter variables:

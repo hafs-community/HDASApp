@@ -102,7 +102,7 @@
          round_horizontal_bin_count_to_nearest: true
          action:
            name: reduce obs space
-     
+
        obs prior filters:
        - filter: Bounds Check
          filter variables:
@@ -127,6 +127,7 @@
          maxvalue: 549.99999
          action:
            name: reject
+
        # Step B: Do initial observation error Assignment
        - filter: Perform Action
          filter variables:
@@ -135,6 +136,7 @@
          action:
            name: assign error
            error parameter vector: &radiance_mhs_n19_error [2.5, 2.5, 2.5, 2.0, 2.0]
+
        # Step C:  Assign surface_water_ice_snow = 1 if surface type is sea, ice, or snow.
        - filter: Variable Assignment
          assignments:
