@@ -1,0 +1,539 @@
+     - obs space:
+         name: MHS N19
+         distribution:
+           name: "{{distribution_type}}"
+           halo size: 500e3
+         obsdatain:
+           engine:
+             type: H5File
+             obsfile: obs/hafs.t{{HH}}z.radiance_mhs_n19.nc
+             missing file action: warn
+         obsdataout:
+           engine:
+             type: H5File
+             obsfile: hofx/diag_radiance_mhs_n19_t{{HH}}z.nc
+         io pool:
+           max pool size: {{POOL_SIZE}}
+         simulated variables: [brightnessTemperature]
+         channels: &radiance_mhs_n19_channels 1-5
+     
+       # Observation Operator
+       # --------------------
+       obs operator:
+         name: CRTM
+         Absorbers: [H2O, O3, CO2]
+         obs options:
+           Sensor_ID: mhs_n19
+           EndianType: little_endian
+           CoefficientPath: crtm/
+         linear obs operator:
+           Absorbers: [H2O, O3]
+     
+       # Observation Bias Correction (VarBC)
+       # -----------------------------------
+       obs bias:
+         input file: obs/satbias_radiance_mhs_n19_t{{HH}}z.nc
+         output file: bc/out_satbias_radiance_mhs_n19_t{{HH}}z.nc
+         variational bc:
+           predictors:
+           - name: constant
+           - name: lapseRate
+             order: 2
+             tlapse: &radiance_mhs_n19_tlapse obs/radiance_mhs_n19.tlapse.txt
+           - name: lapseRate
+             tlapse: *radiance_mhs_n19_tlapse
+           - name: emissivityJacobian
+           - name: sensorScanAngle
+             order: 4
+           - name: sensorScanAngle
+             order: 3
+           - name: sensorScanAngle
+             order: 2
+           - name: sensorScanAngle
+         covariance:
+           minimal required obs number: 20
+           variance range: [1.0e-6, 10.0]
+           step size: 1.0e-4
+           largest analysis variance: 10000.0
+           prior:
+             input file: obs/satbias_radiance_mhs_n19_t{{HH}}z_cov.nc
+             inflation:
+               ratio: 1.1
+               ratio for small dataset: 2.0
+           output file: bc/out_satbias_radiance_mhs_n19_t{{HH}}z_cov.nc
+     
+       # ------------------------
+       obs pre filters:
+       - filter: Domain Check
+         apply at iterations: 0,1
+         where:
+         - variable:
+             name: MetaData/latitude
+           minvalue: {{MIN_LAT}}
+           maxvalue: {{MAX_LAT}}
+         action:
+           name: reduce obs space
+       - filter: Domain Check
+         apply at iterations: 0,1
+         where:
+         - variable:
+             name: MetaData/longitude
+           minvalue: {{MIN_LON}}
+           maxvalue: {{MAX_LON}}
+         action:
+           name: reduce obs space
+       # Remove observations from the Edge of the Scan
+       - filter: Domain Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         where:
+         - variable:
+             name: MetaData/sensorScanPosition
+           is_in: 10-81
+         action:
+           name: reduce obs space
+     
+       # Data Thinning
+       - filter: Gaussian Thinning
+         horizontal_mesh: 45
+         use_reduced_horizontal_grid: true
+         distance_norm: geodesic
+         round_horizontal_bin_count_to_nearest: true
+         action:
+           name: reduce obs space
+     
+       obs prior filters:
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         test variables:
+         - name: GeoVaLs/observable_domain_mask
+           flag all filter variables if any test variable is out of bounds: true
+           minvalue: 0.0
+           maxvalue: 0.5
+
+       # Observation Post Filters (QC)
+       # -----------------------------
+       obs post filters:
+       # Step A: Conduct observation range sanity check
+       # Valid range: (50, 550)
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         minvalue: 50.00001
+         maxvalue: 549.99999
+         action:
+           name: reject
+       # Step B: Do initial observation error Assignment
+       - filter: Perform Action
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         action:
+           name: assign error
+           error parameter vector: &radiance_mhs_n19_error [2.5, 2.5, 2.5, 2.0, 2.0]
+       # Step C:  Assign surface_water_ice_snow = 1 if surface type is sea, ice, or snow.
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/surface_water_ice_snow
+           type: int
+           value: 1
+         where:
+         - variable:
+             name: GeoVaLs/water_area_fraction
+           minvalue: 0.99
+         - variable:
+             name: GeoVaLs/ice_area_fraction
+           minvalue: 0.99
+         - variable:
+             name: GeoVaLs/surface_snow_area_fraction
+           minvalue: 0.99
+         where operator: or
+       # Step C1: Assign surface_water_ice_snow = 0 if surface type is not sea, ice, or snow.
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/surface_water_ice_snow
+           type: int
+           value: 0
+         where:
+         - variable:
+             name: GeoVaLs/water_area_fraction
+           maxvalue: 0.99
+           max_exclusive: true
+         - variable:
+             name: GeoVaLs/ice_area_fraction
+           maxvalue: 0.99
+           max_exclusive: true
+         - variable:
+             name: GeoVaLs/surface_snow_area_fraction
+           maxvalue: 0.99
+           max_exclusive: true
+     
+       # Step D: Get Departure ObsMinusHofx = ObsValue - HofX
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/ObsMinusHofx
+           channels: *radiance_mhs_n19_channels
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: ObsValue/brightnessTemperature
+                 channels: *radiance_mhs_n19_channels
+               - name: HofX/brightnessTemperature
+                 channels: *radiance_mhs_n19_channels
+               coefs:
+               - 1
+               - -1
+       # Step E: Get cloud_index ("dsi" in GSI sub "qc_mhs")
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/cloud_index
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/ObsMinusHofx
+                 channels: [1]
+               - name: DerivedMetaData/ObsMinusHofx
+                 channels: [2]
+               coefs:
+               - 0.85
+               - -1
+         where:
+         - variable:
+             name: DerivedMetaData/surface_water_ice_snow
+           is_in: 0
+       # Step E1: Get cloud_index ("dsi" in GSI sub "qc_mhs")
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/cloud_index
+           type: float
+           value: 9.0
+         where:
+         - variable:
+             name: DerivedMetaData/surface_water_ice_snow
+           is_in: 1
+         - variable:
+             name: ObsValue/brightnessTemperature_2
+           minvalue: 300.0
+       # Step E2: Define 300-Obs(ch2)
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/diff_300_obs2
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: ObsValue/brightnessTemperature
+                 channels: [2]
+               coefs: [-1]
+               intercept: 300.0
+       # Step E3: Define "OmF_ch2 / (300 - Obs_ch2)"
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/omf2_diff_300_obs2
+           type: float
+           function:
+             name: ObsFunction/ElementMultiply
+             options:
+               variables:
+               - name: DerivedMetaData/ObsMinusHofx
+                 channels: [2]
+               - name: DerivedMetaData/diff_300_obs2
+               exponents: [1, -1]
+         where:
+         - variable:
+             name: ObsValue/brightnessTemperature_2
+           maxvalue: 300.0
+           max_exclusive: true
+       # Step E4: Get final 'cloud_index' ('dsi' in qc_mhs in GSI)
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/cloud_index
+           type: float
+           #  function = 0.13 *(tbc(1)-33.58 *tbc(2)/(h300-tb_obs(2))) in  GSI
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/ObsMinusHofx
+                 channels: [1]
+               - name: DerivedMetaData/omf2_diff_300_obs2
+               coefs: [1, -33.58]
+               total coefficient: 0.13
+         where:
+         - variable:
+             name: DerivedMetaData/surface_water_ice_snow
+           is_in: 1
+         - variable:
+             name: ObsValue/brightnessTemperature_2
+           maxvalue: 300.0
+           max_exclusive: true
+       # Step E5: Make cloud_index >= 0
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/cloud_index
+           type: float
+           value: 0.0
+         where:
+         - variable:
+             name: DerivedMetaData/cloud_index
+           maxvalue: 0.0
+     
+       # Step F: Get tpwc_index =((ObsMinusHofX_1 - 7.5*dsi)/10.0)**2+(dsi)**2
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/tpwc_indexA
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/ObsMinusHofx
+                 channels: [1]
+               - name: DerivedMetaData/cloud_index
+               coefs: [1, -7.5]
+               total coefficient: 0.1
+       # Step F1: Get the final 'tpwc_index'  (it is 'fact1' in qc_mhs() in GSI)
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/tpwc_index
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/tpwc_indexA
+               - name: DerivedMetaData/cloud_index
+               exponents: [2, 2]
+       # Step H: Assign inflationFactor0 = (1 - tpwc_index^2)
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/inflationFactor0
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/tpwc_index
+               coefs: [-1]
+               exponents: [2]
+               intercept: 1
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           maxvalue: 1.0
+       # Step H1: Assign inflationFactor1 = 1.0/(inflationFactor0)^(0.5)
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/inflationFactor1
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/inflationFactor0
+               exponents: [-0.5]
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           maxvalue: 1.0
+           max_exclusive: true
+       # Step H2: Assign inflationFactor1 = 1.0 where tpwc_index >= 1.0
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/inflationFactor1
+           type: float
+           value: 1.0
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           minvalue: 1.0
+     
+       # Step J: Initial error inflation by inflationFactor1
+       - filter: Perform Action
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           maxvalue: 1.0
+         action:
+           name: inflate error
+           inflation variable:
+             name: DerivedMetaData/inflationFactor1
+     
+       # Step J1: Observation error inflation based on topography check
+       - filter: Variable Assignment
+         assignments:
+         - name: ObsErrorFactorTopo@DerivedMetaData
+           channels: *radiance_mhs_n19_channels
+           type: float
+           function:
+             name: ObsErrorFactorTopoRad@ObsFunction
+             channels: *radiance_mhs_n19_channels
+             options:
+               sensor: &radiance_mhs_n19_sensor mhs_n19
+               channels: *radiance_mhs_n19_channels
+       - filter: Perform Action
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         action:
+           name: inflate error
+           inflation variable:
+             name: ObsErrorFactorTopo@DerivedMetaData
+             channels: *radiance_mhs_n19_channels
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           maxvalue: 1.0
+     
+       # Step J2: Obs error inflation based on TOA Transmittance check
+       - filter: Variable Assignment
+         assignments:
+         - name: ObsErrorFactorTransmitTop@DerivedMetaData
+           channels: *radiance_mhs_n19_channels
+           type: float
+           function:
+             name: ObsErrorFactorTransmitTopRad@ObsFunction
+             channels: *radiance_mhs_n19_channels
+             options:
+               channels: *radiance_mhs_n19_channels
+     
+       - filter: Perform Action
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         action:
+           name: inflate error
+           inflation variable:
+             name: ObsErrorFactorTransmitTop@DerivedMetaData
+             channels: *radiance_mhs_n19_channels
+     
+       # Step K: Find gross error check bounds
+       #  Note, use DerivedMetaData/inflationFactor1 for "obserr_bound_latitude"
+       - filter: Variable Assignment
+         assignments:
+         - name: ObsErrorBound@DerivedMetaData
+           channels: *radiance_mhs_n19_channels
+           type: float
+           function:
+             name: ObsErrorBoundMW@ObsFunction
+             channels: *radiance_mhs_n19_channels
+             options:
+               sensor: *radiance_mhs_n19_sensor
+               channels: *radiance_mhs_n19_channels
+               obserr_bound_latitude:
+                 name: DerivedMetaData/inflationFactor1
+               obserr_bound_transmittop:
+                 name: ObsErrorFactorTransmitTop@DerivedMetaData
+                 channels: *radiance_mhs_n19_channels
+                 options:
+                   channels: *radiance_mhs_n19_channels
+               obserr_bound_topo:
+                 name: ObsErrorFactorTopo@DerivedMetaData
+                 channels: *radiance_mhs_n19_channels
+               error parameter vector: *radiance_mhs_n19_error
+               threshold: 3
+               obserr_bound_max: [6.0, 6.0, 6.0, 6.0, 6.0]
+       # Step K1: Gross error check
+       - filter: Background Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         function absolute threshold:
+         - name: ObsErrorBound@DerivedMetaData
+           channels: *radiance_mhs_n19_channels
+         action:
+           name: reject
+     
+       # Step K2: Toss all data with tpwc_index > 1.0
+       - filter: BlackList
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           minvalue: 1.0
+           min_exclusive: true
+       # Step K3: Toss channel 3-5 data with O-F > 2K and tpwc_index < 1.0 or = 1.0
+       - filter: Background Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: 3-5
+         absolute threshold: 2.0
+         where:
+         - variable:
+             name: DerivedMetaData/tpwc_index
+           maxvalue: 1.0
+         action:
+           name: reject
+     
+       # Step L: Conduct inter-channel check
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         test variables:
+         - name: ObsFunction/InterChannelConsistencyCheck
+           channels: *radiance_mhs_n19_channels
+           options:
+             channels: *radiance_mhs_n19_channels
+             sensor: *radiance_mhs_n19_sensor
+             use_flag: &radiance_mhs_n19_useflag [1, 1, 1, 1, 1]
+             use passive_bc: true
+         maxvalue: 1.0e-12
+         action:
+           name: reject
+     
+       # Step L1:  Conduct Useflag check
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         test variables:
+         - name: ObsFunction/ChannelUseflagCheckRad
+           channels: *radiance_mhs_n19_channels
+           options:
+             sensor: *radiance_mhs_n19_sensor
+             channels: *radiance_mhs_n19_channels
+             use_flag: *radiance_mhs_n19_useflag
+         minvalue: 1.0e-12
+         action:
+           name: reject
+     
+       # Step M: Observation error inflation based on surface Jacobian check
+       - filter: Variable Assignment
+         assignments:
+         - name: ObsErrorFactorSurfJacobian@DerivedMetaData
+           channels: *radiance_mhs_n19_channels
+           type: float
+           function:
+             name: ObsErrorFactorSurfJacobianRad@ObsFunction
+             channels: *radiance_mhs_n19_channels
+             options:
+               sensor: *radiance_mhs_n19_sensor
+               channels: *radiance_mhs_n19_channels
+               # surface type    sea, land,   ice,   snow, mixed
+               obserr_demisf: [0.015, 0.090, 0.060, 0.060, 0.750]
+               obserr_dtempf: [0.500, 6.000, 3.000, 6.000, 15.00]
+       # Step M1: Inflate observation error
+       - filter: Perform Action
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_mhs_n19_channels
+         action:
+           name: inflate error
+           inflation variable:
+             name: ObsErrorFactorSurfJacobian@DerivedMetaData
+             channels: *radiance_mhs_n19_channels
+       obs localizations:
+       - localization method: Horizontal Gaspari-Cohn
+         lengthscale: 450e3

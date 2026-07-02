@@ -117,6 +117,29 @@
            flag all filter variables if any test variable is out of bounds: true
            minvalue: 0.0
            maxvalue: 0.5
+       # Data Thinning
+       - filter: Gaussian Thinning
+         horizontal_mesh: 45
+         use_reduced_horizontal_grid: true
+         distance_norm: geodesic
+         actions:
+           - name: set
+             flag: Thinning
+           - name: reject
+        #Toss data if the hofx is missing or outside of range
+       - filter: Domain Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_amsua_metop-c_channels
+         where:
+         - variable:
+             name: HofX/brightnessTemperature
+             channels: *radiance_amsua_metop-c_channels
+           value: is_valid
+           minvalue: 50.00001
+           maxvalue: 449.99999
+         action:
+           name: reject
        - filter: BlackList
          filter variables:
          - name: brightnessTemperature
@@ -361,15 +384,6 @@
                                 2.5, 3.5, 4.5, 4.5, 4.5]
          action:
            name: reject
-       # Data Thinning
-       - filter: Gaussian Thinning
-         horizontal_mesh: 45
-         use_reduced_horizontal_grid: true
-         distance_norm: geodesic
-         actions:
-           - name: set
-             flag: Thinning
-           - name: reject
        #  Inter-channel check
        - filter: Bounds Check
          filter variables:

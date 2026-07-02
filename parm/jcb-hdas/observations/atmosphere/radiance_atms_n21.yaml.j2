@@ -95,7 +95,7 @@
            name: reduce obs space
        # Data Thinning
        - filter: Gaussian Thinning
-         horizontal_mesh: 145
+         horizontal_mesh: 45
          use_reduced_horizontal_grid: true
          distance_norm: geodesic
        #  round_horizontal_bin_count_to_nearest: true
@@ -131,6 +131,20 @@
            flag all filter variables if any test variable is out of bounds: true
            minvalue: 0.0
            maxvalue: 0.5
+       # Toss the data if the hofx is missing or outside of range
+       - filter: Domain Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_atms_n21_channels
+         where:
+         - variable:
+             name: HofX/brightnessTemperature
+             channels: *radiance_atms_n21_channels
+           value: is_valid
+           minvalue: 50.00001
+           maxvalue: 449.99999
+         action:
+           name: reject
        # Step 0-B: Calculate derived variables
        # Calculate CLW retrieved from observation
        - filter: Variable Assignment
@@ -268,6 +282,19 @@
            error function:
              name: InitialObsError@DerivedMetaData
              channels: *radiance_atms_n21_channels
+       # Step 1: Remove Observations from the Edge of the Scan
+       - filter: Domain Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: 1-22
+         where:
+         - variable:
+             name: MetaData/sensorScanPosition
+           is_in: 7-90
+         actions:
+           - name: set
+             flag: ScanEdgeRemoval
+           - name: reject
        # Step 1A: CLW Retrieval Check (observation_based)
        - filter: Bounds Check
          filter variables:

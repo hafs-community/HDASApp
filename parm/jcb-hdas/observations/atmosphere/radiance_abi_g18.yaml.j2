@@ -16,8 +16,9 @@
            max pool size: {{POOL_SIZE}}
          simulated variables: [brightnessTemperature]
          channels: &radiance_abi_g18_channels [7-16]
-       # Observation Operator
-       # --------------------
+
+     # Observation Operator
+     # --------------------
        obs operator:
          name: CRTM
          Absorbers: [H2O, O3, CO2]
@@ -29,8 +30,8 @@
            CoefficientPath: crtm/
          linear obs operator:
            Absorbers: [H2O, O3]
-       # Observation Bias Correction (VarBC)
-       # -----------------------------------
+     # Observation Bias Correction (VarBC)
+     # -----------------------------------
        obs bias:
          input file: obs/satbias_radiance_abi_g18_t{{HH}}z.nc
          output file: bc/out_satbias_radiance_abi_g18_t{{HH}}z.nc
@@ -65,8 +66,8 @@
                ratio: 1.1
                ratio for small dataset: 2.0
            output file: bc/out_satbias_radiance_abi_g18_t{{HH}}z_cov.nc
-       # Observation Filters (QC)
-       # ------------------------
+     # Observation Filters (QC)
+     # ------------------------
        obs pre filters:
        - filter: Domain Check
          apply at iterations: 0,1
@@ -86,14 +87,186 @@
            maxvalue: {{MAX_LON}}
          action:
            name: reduce obs space
+       - filter: Create Diagnostic Flags
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         flags:
+         - name: ZenithAngleCheck
+           initial value: false
+           force reinitialization: false
+         - name: Thinning
+           initial value: false
+           force reinitialization: false
+         - name: GeoDomainCheck
+           initial value: false
+           force reinitialization: false
+         - name: CloudFractionCheck
+           initial value: false
+           force reinitialization: false
+         - name: CloudFractionCheck_channel_10
+           initial value: false
+           force reinitialization: false
+         - name: SplitWindowCheck_channel_10
+           initial value: false
+           force reinitialization: false
+         - name: ClearSkyStdCheck
+           initial value: false
+           force reinitialization: false
+         - name: ClearSkyStdCheck_channel_10
+           initial value: false
+           force reinitialization: false
+         - name: BTrangeCheck
+           initial value: false
+           force reinitialization: false
+         - name: CloudDetectMinResidualIR
+           initial value: false
+           force reinitialization: false
+         - name: SurfaceTempJacobianCheck
+           initial value: false
+           force reinitialization: false
+         - name: GrossCheck
+           initial value: false
+           force reinitialization: false
+         - name: NearSSTRetCheckIR
+           initial value: false
+           force reinitialization: false
+         - name: UseflagCheck
+           initial value: false
+           force reinitialization: false
+
+       # ---------------------------------------------------------------------------------------------------
+       # Step 1 : Satellite Zenith Angle check: remove observations with zenith angle larger than 65 degree
+       # ----------------------------------------------------------------------------------------------------
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         test variables:
+         - name: MetaData/sensorZenithAngle
+         maxvalue: 65.
+         actions:
+         - name: set
+           flag: ZenithAngleCheck
+         #- name: reject
+         - name: reduce obs space
+
+       # ------------------------------------------------------------------------------------------------------------------------
+       # Step 2 : Initial cloud fraction check: remove observations when cloud fraction (from channel 8 or others) is more than 30%
+       #          this initial cloud fraction is applied to all 10 channels
+       # ------------------------------------------------------------------------------------------------------------------------
+       - filter: Domain Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         where:
+         - variable:
+             name: MetaData/cloudAmount
+           maxvalue: 30.
+         actions:
+         - name: set
+           flag: CloudFractionCheck
+           ignore: rejected observations
+         - name: reduce obs space
+       # --------------------------------------------------------------------------------------------------------------
+       # Step 3 : Initial StdDev check: reject observations for all chennales when SDTB > 1.3 from channels 8/9/10 (or)
+       #          This initial stdDev check is applied to all 10 channels based on SDTB from channel 8 or 9 or 10
+       #          max_exclusive is false (default) sincce STDB=1.3 will not be removed
+       # ---------------------------------------------------------------------------------------------------------------
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         test variables:
+         - name: ClearSkyStdDev/brightnessTemperature
+           channels: 8-10
+         flag all filter variables if any test variable is out of bounds: true
+         maxvalue: 1.3
+         #max_exclusive: true
+         actions:
+           - name: set
+             flag: ClearSkyStdCheck
+             ignore: rejected observations
+           #- name: reject
+           - name: reduce obs space
+       # ---------------------------------------------------------------------------------------------------
+       # Step 4 :  BT range check (sanity check)
+       # ----------------------------------------------------------------------------------------------------
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         minvalue: 0.0
+         maxvalue: 1000.0
+         actions:
+         - name: set
+           flag: BTrangeCheck
+           ignore: rejected observations
+         #- name: reject
+         - name: reduce obs space
+       # ---------------------------------------------------------------------------------------------------
+       # Step 5 : Create a variable of thinning priority based on cloudFree and StdDev from ABI channel 13
+       # ----------------------------------------------------------------------------------------------------
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/thinning_priority
+           type: float
+           function:
+             name: ObsFunction/LinearCombination
+             options:
+               variables:
+               - name: MetaData/cloudFree
+               - name: ClearSkyStdDev/brightnessTemperature
+                 channels: 13
+               coefficients: [0.1, -10.0]
+               constant_term: 100.0
+       # ---------------------------------------------------------------------------------------------------
+       # Step 6 : Data Thinning (spatial and temporal thinning)
+       # ----------------------------------------------------------------------------------------------------
+       - filter: Gaussian Thinning
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         horizontal_mesh: 60
+         use_reduced_horizontal_grid: true
+         # Geographic Consistency Parameters
+         round_horizontal_bin_count_to_nearest: true
+         partition_longitude_bins_using_mesh: true
+         # Spatiotemporal Selection
+         distance_norm: maximum
+         #distance_norm: geodesic
+         seed_time: '{{atmosphere_background_time_iso }}'
+         time_mesh: '{{window_length}}'
+         time_min: '{{window_begin}}'
+         time_max: '{{window_end}}'
+         priority_variable: DerivedMetaData/thinning_priority
+         actions:
+         - name: set
+           flag: Thinning
+           ignore: rejected observations
+         - name: reduce obs space
+         #- name: reject
+
        obs prior filters:
+       # ------------------------------------
+       # Step 7 : Initial obs erro assignment
+       # -----------------------------------
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
            channels: *radiance_abi_g18_channels
          action:
            name: assign error
-           error parameter vector: &radiance_abi_g18_obserr [1.4,3.0,2.5,2.2,2.0,2.0,2.0,2.0,2.0,2.0]
+           error parameter vector: &radiance_abi_g18_obserr [2.2,1.756,1.587,1.185,2.2,2.2,2.2,2.2,2.2,2.2]
+
+       # --------------------------------------------------------
+       # Step 8 : Creat surface flag assignment from Geovals
+       # water:0
+       # land: 1
+       # ice:  2
+       # Snow: 3
+       # Mixed/Other: 4.
+       # ----------------------------------------------------------
        - filter: Variable Assignment
          assignments:
          - name: DerivedMetaData/surfaceFlag
@@ -124,6 +297,9 @@
                      name: GeoVaLs/surface_snow_area_fraction
                    minvalue: 0.99
                  value: 3
+       # --------------------------------------------------------
+       # Step 9: Surface Parameter assignment from geovals
+       # ----------------------------------------------------------
        - filter: Variable Assignment
          assignments:
          - name: DerivedMetaData/surfaceParam
@@ -154,17 +330,11 @@
                      name: GeoVaLs/surface_snow_area_fraction
                    minvalue: 0.99
                  value: 15
-       - filter: Variable Assignment
-         assignments:
-         - name: DerivedMetaData/thinningCriteria
-           type: int
-           function:
-             name: IntObsFunction/Arithmetic
-             options:
-               variables:
-               - name: DerivedMetaData/surfaceParam
-               coefs: [1]
+
        obs post filters:
+       # ----------------------------------------------------------------------------------------
+       # Step 10: online geo-domain Check, rejecting observations outside of regional MPAS domain
+       # ----------------------------------------------------------------------------------------
        - filter: Bounds Check
          filter variables:
          - name: brightnessTemperature
@@ -174,52 +344,32 @@
            flag all filter variables if any test variable is out of bounds: true
            minvalue: 0.0
            maxvalue: 0.5
-       # Satellite Zenith Angle Check
-       - filter: Bounds Check
-         filter variables:
-         - name: brightnessTemperature
-           channels: *radiance_abi_g18_channels
-         test variables:
-         - name: MetaData/sensorZenithAngle
-         maxvalue: 65.
-         action:
-           name: reject
-      #from read_abi: Reject when cloud fraction is more than 30
+         actions:
+           - name: set
+             flag: GeoDomainCheck
+           - name: reject
+       # ---------------------------------------------------------------------------------------------------
+       # Step 11 :  hofx/BT range check (sanity check)
+       # Toss data if the hofx is missing or outside of range
+       # ----------------------------------------------------------------------------------------------------
        - filter: Domain Check
          filter variables:
          - name: brightnessTemperature
-           channels: 7-16
-         where:
-         - variable:
-             name: MetaData/cloudAmount
-             channels: 8
-           maxvalue: 30.
-      #from read_abi: WV Channels 8-10 scene consistency check SDTB>1.3
-       - filter: Domain Check
-         filter variables:
-         - name: brightnessTemperature
-           channels: 7-16
-         where:
-         - variable:
-             name: ClearSkyStdDev/brightnessTemperature
-             channels: 8-10
-           maxvalue: 1.3
-           max_exclusive: true
-      # Thinning
-       - filter: Gaussian Thinning
-         filter variables:
-         - name: brightnessTemperature
            channels: *radiance_abi_g18_channels
-         horizontal_mesh: 45
-         use_reduced_horizontal_grid: true
-         distance_norm: maximum
-         time_mesh: 'PT06H'
-         time_min: "{{atmosphere_background_time_iso}}"
-         time_max: "{{atmosphere_background_time_iso9}}"
-         priority_variable: DerivedMetaData/thinningCriteria
+         where:
+         - variable:
+             name: HofX/brightnessTemperature
+             channels: *radiance_abi_g18_channels
+           value: is_valid
+           minvalue: 50.00001
+           maxvalue: 449.99999
          action:
            name: reject
-      #Surface type check
+
+       # -----------------------------------------------------
+       # Step 12 :  Surface type check
+       # Step 12a: Toss all channels 7, 11-16  data over land
+       # ------------------------------------------------------
        - filter: RejectList
          filter variables:
          - name: brightnessTemperature
@@ -228,6 +378,10 @@
          - variable:
              name: GeoVaLs/land_area_fraction
            minvalue: 0.99
+
+       # -------------------------------------------
+       # Setp 12b: Toss all channels data over snow
+       # --------------------------------------------
        - filter: RejectList
          filter variables:
          - name: brightnessTemperature
@@ -236,6 +390,9 @@
          - variable:
              name: GeoVaLs/surface_snow_area_fraction
            minvalue: 0.99
+       # ---------------------------------------------------------------------------------
+       # Step 12c: Toss all channels data over ice (reject if ice_area_fraction>=0.99)
+       # ---------------------------------------------------------------------------------
        - filter: RejectList
          filter variables:
          - name: brightnessTemperature
@@ -244,6 +401,10 @@
          - variable:
              name: GeoVaLs/ice_area_fraction
            minvalue: 0.99
+
+       # --------------------------------------------------------
+       # Step 12d:  Toss all channels data over mixed surface
+       # --------------------------------------------------------
        - filter: RejectList
          filter variables:
          - name: brightnessTemperature
@@ -265,16 +426,10 @@
              name: GeoVaLs/surface_snow_area_fraction
            maxvalue: 0.99
            max_exclusive: true
-      #BT range check
-       - filter: Bounds Check
-         filter variables:
-         - name: brightnessTemperature
-           channels: *radiance_abi_g18_channels
-         minvalue: 0.0
-         maxvalue: 1000.0
-         action:
-           name: reject
-      #Model top transmittance check
+       # -----------------------------------------------------------------------------------------------------------------------------------------------
+       # Step 13: Observation Error inflation: Model top Transmittance Check
+       # This obsfunction calculates the observation error inflation factor for satellite radiances as a function of model top-to-space transmittance.
+       # ------------------------------------------------------------------------------------------------------------------------------------------------
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
@@ -286,7 +441,10 @@
              channels: *radiance_abi_g18_channels
              options:
                channels: *radiance_abi_g18_channels
-      #Cloud detection
+
+       # --------------------------------------------------
+       # Step 14:  MinResidual Cloud Detection Check
+       # ---------------------------------------------------
        - filter: Bounds Check
          filter variables:
          - name: brightnessTemperature
@@ -296,14 +454,20 @@
            channels: *radiance_abi_g18_channels
            options:
              channels: *radiance_abi_g18_channels
-             use_flag: &radiance_abi_g18_useflag [-1,1,1,1,-1,-1,-1,-1,-1,-1]
+             use_flag: &radiance_abi_g18_use_flag [-1,1,1,1,-1,-1,-1,-1,-1,-1]
              use_flag_clddet: [-2, -2, -2, -2, -2, -2, -2, -2, -2, -2]
              obserr_dtempf: [0.5, 2.0, 4.0, 2.0, 4.0]
              error parameter vector: *radiance_abi_g18_obserr
          maxvalue: 1.0e-12
-         action:
-           name: reject
-      #Scene Consistency Check based on ch13 (10.8 micron)
+         actions:
+           - name: set
+             flag: CloudDetectMinResidualIR
+             ignore: rejected observations
+           - name: reject
+       # ---------------------------------------------------------------------------------------------------------------------
+       # Step 15: Second StdDev check: Scene Consistency Check based on StdDev of ch13 (10.8 micron) for chanenel 7, 10-16
+       # This step would remove more data for channel 10
+       # ---------------------------------------------------------------------------------------------------------------------
        - filter: Domain Check
          filter variables:
          - name: brightnessTemperature
@@ -314,61 +478,81 @@
              channels: 13
            maxvalue: 0.5
            max_exclusive: true
-      #Scene Consistency Channels 8-10 Based on ch 8 SDTB
+         actions:
+           - name: set
+             flag: ClearSkyStdCheck_channel_10
+             ignore: rejected observations
+           - name: reject
+       # -------------------------------------------------------------------------------------------------------------
+       # Step 16: Observation Error inflation: adjust error for channels 8-10 according to ch8 BT standard deviation
+       # --------------------------------------------------------------------------------------------------------------
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
            channels: 8-10
          where:
          - variable:
-             name: ClearSkyStdDev/brightnessTemperature_8
+             name: ClearSkyStdDev/brightnessTemperature
+             channels: 8
            maxvalue: 0.5
            minvalue: 0.4
            min_exclusive: true
          action:
            name: inflate error
            inflation factor: 1.1489
+
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
            channels: 8-10
          where:
          - variable:
-             name: ClearSkyStdDev/brightnessTemperature_8
+             name: ClearSkyStdDev/brightnessTemperature
+             channels: 8
            maxvalue: 0.6
-      #     max_exclusive: true
+           #max_exclusive: true
            minvalue: 0.5
            min_exclusive: true
          action:
            name: inflate error
            inflation factor: 1.2923
+
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
            channels: 8-10
          where:
          - variable:
-             name: ClearSkyStdDev/brightnessTemperature_8
+             name: ClearSkyStdDev/brightnessTemperature
+             channels: 8
            maxvalue: 0.7
-      #     max_exclusive: true
+           #max_exclusive: true
            minvalue: 0.6
            min_exclusive: true
          action:
            name: inflate error
            inflation factor: 1.4967
+
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
            channels: 8-10
          where:
          - variable:
-             name: ClearSkyStdDev/brightnessTemperature_8
+             name: ClearSkyStdDev/brightnessTemperature
+             channels: 8
            minvalue: 0.7
            min_exclusive: true
          action:
            name: inflate error
            inflation factor: 1.5199
-      #Near SST Check
+
+       # -------------------------------------------------------------------------------------------------------------------------------------------------------
+       # Step 17: NSST Retrieval Check
+       # This obsFunction is designed to perform QC using retrieved near-sea-surface temperature (NSST) from Infrared radiances.
+       # The output of this obsFunction is the default JEDI QC flags: 0 = channel is retained for assimilation; 1 = channel is not retained for assimilation.
+       # The brightness_temperature is rejected if the QC flags from this ObsFunction output value is bigger than maxvalue=1.0e-12.
+       # ---------------------------------------------------------------------------------------------------------------------------------------------------------
        - filter: Bounds Check
          filter variables:
          - name: brightnessTemperature
@@ -378,11 +562,21 @@
            channels: *radiance_abi_g18_channels
            options:
              channels: *radiance_abi_g18_channels
-             use_flag: *radiance_abi_g18_useflag
+             use_flag: *radiance_abi_g18_use_flag
+             sensor: abi_g18
+             obserr_demisf: [0.01, 0.02, 0.03, 0.02, 0.03]
+             obserr_dtempf: [0.50, 2.00, 4.00, 2.00, 4.00]
          maxvalue: 1.0e-12
-         action:
-           name: reject
-      #Surface Jacobian
+         actions:
+           - name: set
+             flag: NearSSTRetCheckIR
+             ignore: rejected observations
+           - name: reject
+       # ----------------------------------------------------------------------------------------------------------
+       # Step 18: Error inflation: Surface Jacobians Check
+       # This obsFunction is designed to compute observation error inflation factor for brightness temperature as
+       # a function of weighted surface temperature jacobian and surface emissivity jacobian.
+       # -----------------------------------------------------------------------------------------------------------
        - filter: Perform Action
          filter variables:
          - name: brightnessTemperature
@@ -394,10 +588,15 @@
              channels: *radiance_abi_g18_channels
              options:
                channels: *radiance_abi_g18_channels
-               sensor: abi_g18
                obserr_demisf: [0.01, 0.02, 0.03, 0.02, 0.03]
                obserr_dtempf: [0.5, 2.0, 4.0, 2.0, 4.0]
-      #Channels 7, 10-16 Cloud fraction >2
+               sensor: abi_g18
+
+       # ----------------------------------------------------------------------------------------------------------
+       # Step 19: additional cloud fraction check for channels 7, 10-16
+       # remove when cloud fraction > 2
+       # this step would remove more data from channel 8
+       # -----------------------------------------------------------------------------------------------------------
        - filter: Domain Check
          filter variables:
          - name: brightnessTemperature
@@ -406,10 +605,19 @@
          - variable:
              name: MetaData/cloudAmount
            maxvalue: 2
-      #Variable assignment, OmF non bias corrected
+         actions:
+         - name: set
+           flag: CloudFractionCheck_channel_10
+           ignore: rejected observations
+         - name: reject
+
+       # ----------------------------------------------------------------------------------------------------------
+       # Step 20: split window check for channels 7, 10-16
+       # Step 20a: Variable assignment, OmF non bias corrected
+       # -----------------------------------------------------------------------------------------------------------
        - filter: Variable Assignment
          assignments:
-         - name: OmFNBC@DerivedMetaData
+         - name: DerivedMetaData/OmFNBC
            type: float
            function:
              name: ObsFunction/Arithmetic
@@ -428,17 +636,29 @@
                - name: brightnessTemperature@ObsBiasData
                  channels: 14
                coefs: [1, -1, 1, -1, 1, -1]
-      #Channels 7, 10-16, OmFNBC < -0.75
-       - filter: Domain Check
+
+       # ----------------------------------------------------------------------------------------------------------------
+       # Step 20b: Use split window chns to remove opaque clouds
+       #           reject observatiohs for Channels 7, 10-16, when OmFNBC =< -0.75 min_exclusive:true is uesed to reject
+       #           min_exclusive:true is uesed to reject when omFNBC= -0.75
+       # ------------------------------------------------------------------------------------------------------------------
+       - filter: Bounds Check
          filter variables:
          - name: brightnessTemperature
            channels: 7, 10-16
-         where:
-         - variable:
-             name: OmFNBC@DerivedMetaData
-           minvalue: -0.75
-           max_exclusive: true
-      #Final gross check
+         test variables:
+         - name: DerivedMetaData/OmFNBC
+         minvalue: -0.75
+         min_exclusive: true
+         actions:
+           - name: set
+             flag: SplitWindowCheck_channel_10
+             ignore: rejected observations
+           - name: reject
+
+       # ----------------------------------
+       # Step 21: Gross check
+       # ----------------------------------
        - filter: Background Check
          filter variables:
          - name: brightnessTemperature
@@ -447,21 +667,46 @@
          - name: ObsFunction/ObsErrorBoundIR
            channels: *radiance_abi_g18_channels
            options:
-             sensor: abi_g18
+             sensor: radiance_abi_g18
              channels: *radiance_abi_g18_channels
              obserr_bound_latitude:
                name: ObsFunction/ObsErrorFactorLatRad
                options:
-                 latitude_parameters: [0.0, 0.0, 0.0, 0.0]
+                 #latitude_parameters: [0.0, 0.0, 0.0, 0.0]
+                 latitude_parameters: [25.0, 0.5, 0.04, 1.0]
              obserr_bound_transmittop:
                name: ObsFunction/ObsErrorFactorTransmitTopRad
                channels: *radiance_abi_g18_channels
                options:
                  channels: *radiance_abi_g18_channels
-             obserr_bound_max: &radiance_abi_g18_obserrmax [2.5,4.0,4.0,3.5,2.5,2.5,2.5,2.5,2.5,2.5]
-             error parameter vector: *radiance_abi_g18_obserr
-         action:
-           name: reject
+             obserr_bound_max: [{{ get_satellite_variable(observation_from_jcb, "ermax") }}]
+             error parameter vector: *radiance_abi_g18_error
+         actions:
+           - name: set
+             flag: GrossCheck
+             ignore: rejected observations
+           - name: reject
+
+       # -------------------------------
+       # Step 22: Useflag Check
+       # -------------------------------
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_abi_g18_channels
+         test variables:
+         - name: ObsFunction/ChannelUseflagCheckRad
+           channels: *radiance_abi_g18_channels
+           options:
+             channels: *radiance_abi_g18_channels
+             use_flag: *radiance_abi_g18_use_flag
+         minvalue: 1.0e-12
+         actions:
+           - name: set
+             flag: UseflagCheck
+             ignore: rejected observations
+           - name: reject
+
        obs localizations:
        - localization method: Horizontal Gaspari-Cohn
          lengthscale: 450e3

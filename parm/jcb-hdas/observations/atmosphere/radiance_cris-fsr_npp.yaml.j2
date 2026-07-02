@@ -196,6 +196,19 @@
          action:
            name: reduce obs space
        obs post filters:
+       - filter: Bounds Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: *radiance_cris-fsr_npp_channels
+         test variables:
+         - name: GeoVaLs/observable_domain_mask
+           flag all filter variables if any test variable is out of bounds: true
+           minvalue: 0.0
+           maxvalue: 0.5
+         actions:
+         - name: set
+           flag: GeoDomainCheck
+         - name: reject
        # Step 6: Wavenumber Check
        - filter: RejectList
          filter variables:
