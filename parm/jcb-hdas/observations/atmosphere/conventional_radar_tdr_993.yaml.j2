@@ -24,6 +24,15 @@
        obs error:
          covariance model: diagonal
        obs pre filters:
+       - filter: RejectList
+         apply at iterations: 0,1
+         filter variables:
+         - name: radialVelocity
+         where:
+         - variable: ObsType/radialVelocity
+           is_not_in: 993
+         action:
+           name: reduce obs space
        - filter: Domain Check
          apply at iterations: 0,1
          where:
