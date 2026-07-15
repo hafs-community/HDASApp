@@ -20,9 +20,8 @@
          name: CRTM
          Absorbers: [H2O, O3, CO2]
          Clouds: &radiance_amsua_metop-c_clouds [Water, Ice, Rain, Snow, Graupel]
-         Cloud_Fraction: 1.0
-         method for cloud fraction within fov: none
-         method for hydrometeor effective radii within fov: none
+         method for cloud fraction within fov: thompson
+         method for hydrometeor effective radii within fov: thompson
          Cloud_Seeding: true
          obs options:
            Sensor_ID: amsua_metop-c
@@ -91,6 +90,26 @@
          - name: Thinning
            initial value: false
            force reinitialization: false
+       # Remove Observations from the Edge of the Scan
+       - filter: Domain Check
+         filter variables:
+         - name: brightnessTemperature
+           channels: 1-15
+         where:
+         - variable:
+             name: MetaData/sensorScanPosition
+           is_in: 4-27
+         action:
+           name: reduce obs space
+       # Data Thinning
+       - filter: Gaussian Thinning
+         horizontal_mesh: 45
+         use_reduced_horizontal_grid: true
+         distance_norm: geodesic
+         actions:
+         - name: set
+           flag: Thinning
+         - name: reject
        obs prior filters:
        # Zero Atmospheric clouds in CRTM where water_area_fraction < 0.99
        - filter: Variable Assignment
@@ -117,15 +136,6 @@
            minvalue: 0.0
            maxvalue: 0.5
        obs post filters:
-       # Data Thinning
-       - filter: Gaussian Thinning
-         horizontal_mesh: 45
-         use_reduced_horizontal_grid: true
-         distance_norm: geodesic
-         actions:
-         - name: set
-           flag: Thinning
-         - name: reject
         #Toss data if the hofx is missing or outside of range
        - filter: Domain Check
          filter variables:
