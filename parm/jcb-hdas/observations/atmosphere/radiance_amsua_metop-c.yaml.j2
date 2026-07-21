@@ -81,6 +81,13 @@
            maxvalue: {{MAX_LON}}
          action:
            name: reduce obs space
+       # Remove channel 4 metop-c data. Andrew's suggestion 7/17 email
+       - filter: RejectList
+         filter variables:
+         - name: brightnessTemperature
+           channels: 4
+         action:
+           name: reject
        # Step 0-A: Create Diagnostic Flags
        - filter: Create Diagnostic Flags
          filter variables:
