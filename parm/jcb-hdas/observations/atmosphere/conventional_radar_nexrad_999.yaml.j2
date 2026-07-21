@@ -1,0 +1,234 @@
+     - obs space:
+         name: conventional_radar_nexrad999
+         distribution:
+           name: "{{distribution_type}}"
+           halo size: 500e3
+         obsdatain:
+           engine:
+             type: H5File
+             obsfile: obs/hafs.t{{HH}}z.conventional_radar_nexrad_999.nc
+             missing file action: "warn"
+         obsdataout:
+           engine:
+             type: H5File
+             obsfile: hofx/diag_conventional_radar_nexrad_999_t{{HH}}z.nc
+             allow overwrite: true
+         io pool:
+           max pool size: {{POOL_SIZE}}
+         observed variables: [radialVelocity]
+         simulated variables: [radialVelocity]
+         empty obs space action: skip output
+       obs operator:
+         name: RadarRadialVelocity
+       linear obs operator:
+         name: RadarRadialVelocity
+       obs error:
+         covariance model: diagonal
+       obs pre filters:
+       - filter: RejectList
+         apply at iterations: 0,1
+         filter variables:
+         - name: radialVelocity
+         where:
+         - variable: ObsType/radialVelocity
+           is_not_in: 999
+         action:
+           name: reduce obs space
+       - filter: Domain Check
+         apply at iterations: 0,1
+         where:
+         - variable:
+             name: MetaData/latitude
+           minvalue: {{MIN_LAT}}
+           maxvalue: {{MAX_LAT}}
+         action:
+           name: reduce obs space
+       - filter: Domain Check
+         apply at iterations: 0,1
+         where:
+         - variable:
+             name: MetaData/longitude
+           minvalue: {{MIN_LON}}
+           maxvalue: {{MAX_LON}}
+         action:
+           name: reduce obs space
+       - filter: Bounds Check
+         filter variables:
+         - name: radialVelocity 
+         test variables:
+         - name: MetaData/height
+         maxvalue: 20000.0
+         action:
+           name: reduce obs space 
+       # Observation Prior Filters (QC)
+       # -----------------------------------
+       obs prior filters:
+       # Online domain check
+       - filter: Bounds Check
+         filter variables:
+         - name: radialVelocity
+         test variables:
+         - name:  GeoVaLs/observable_domain_mask
+           minvalue: 0.0
+           maxvalue: 0.5
+         action:
+           name: reject
+       # check if observation below model surface (zsges >= dpres)
+       - filter: Bounds Check
+         filter variables:
+         - name: radialVelocity
+         test variables:
+         - name: ObsFunction/Arithmetic
+           options:
+             variables:
+             - name: MetaData/height
+             - name: GeoVaLs/height_above_mean_sea_level_at_surface
+             coefs: [1.0,-1.0]
+         minvalue: 0.0
+         action:
+           name: reject
+       # Assign initial error. 5 m/s for all data
+       - filter: Perform Action
+         filter variables:
+         - name: radialVelocity
+         action:
+           name: assign error
+           error parameter: 5.
+       # Observation Post Filters (QC)
+       #  -----------------------------
+       obs post filters:
+       # Step a: get departure ObsMinusHofx = ObsValue -HofX
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/ObsMinusHofx
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: ObsValue/radialVelocity
+               - name: HofX/radialVelocity
+               coefs: [1., -1.]
+       # step b: get infaltion factor for over-high topography (factelv)
+       # function: factelv=(2000/elevation)**2 note: in GSI this apply to the numerator, in ratio_error calculation. thus here should be reversed
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/elev_sq
+           type: float
+           function:
+             name: ObsFunction/ElementMultiply
+             options:
+               variables:
+               - name: MetaData/stationElevation
+               exponents: [2.0]
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/factelv
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/elev_sq
+               coefs: [0.00000025]  # 1/2000**2 
+       - filter: Perform Action
+         filter variables:
+         - name: radialVelocity
+         where:
+         - variable:
+             name: MetaData/stationElevation
+           minvalue: 2000.01
+         action:
+           name: inflate error
+           inflation variable:
+             name: DerivedMetaData/factelv
+       # Step c: get inflation factor if model and observation topography too different
+       # factdif= (r200/(abs(zsges0-data(ielev,i))))**2
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/elev_diff
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: GeoVaLs/height_above_mean_sea_level_at_surface
+               - name: MetaData/stationElevation
+               coefs: [1.0, -1.0]
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/elev_diff_sq
+           type: float
+           function:
+             name: ObsFunction/ElementMultiply
+             options:
+               variables:
+               - name: DerivedMetaData/elev_diff
+               exponents: [2.0]
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/factdif
+           type: float
+           function:
+             name: ObsFunction/Arithmetic
+             options:
+               variables:
+               - name: DerivedMetaData/elev_diff_sq
+               coefs: [0.000025]
+       - filter: Perform Action
+         filter variables:
+         - name: radialVelocity
+         where:
+         - variable:
+             name: DerivedMetaData/elev_diff_sq
+           minvalue: 40000.0001
+         action:
+           name: inflate error
+           inflation variable:
+             name: DerivedMetaData/factdif
+       # Gross error check 
+       - filter: Variable Assignment
+         assignments:
+         - name: DerivedMetaData/ObsErrorBoundRW
+           type: float
+           function:
+             name: ObsFunction/ObsErrorBoundConventional
+             options:
+               obsvar: radialVelocity
+               obserr_bound_min: 2.0
+               obserr_bound_max: 10.0
+               obserr_bound_factor: 10.0
+ 
+       - filter: Background Check
+         apply at iterations: 0, 1
+         filter variables:
+         - name: radialVelocity
+         function absolute threshold:
+         - name: DerivedMetaData/ObsErrorBoundRW
+         action:
+           name: reject
+       # Error inflation based on residual, max inflation if diff > 20
+       - filter: Perform Action
+         filter variables:
+         - name: radialVelocity
+         where:
+         - variable:
+             name: DerivedMetaData/ObsMinusHofx
+           minvalue: 20.0
+         action:
+           name: inflate error
+           inflation factor: 2.0
+       - filter: Perform Action
+         filter variables:
+         - name: radialVelocity
+         where:
+         - variable:
+             name: DerivedMetaData/ObsMinusHofx
+           maxvalue: -20.0
+         action:
+           name: inflate error
+           inflation factor: 2.0
+       # --------------------------------
+       obs localizations:
+       - localization method: Horizontal Gaspari-Cohn
+         lengthscale: 450e3
