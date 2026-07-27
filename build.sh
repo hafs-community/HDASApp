@@ -135,9 +135,11 @@ if [[ $BUILD_JCB == 'YES' ]]; then
   #cd $dir_root/sorc/jcb/src/jcb/configuration/apps/hdas/test/client_integration
   #python run.py
   cd $dir_root/sorc/jcb/src/jcb/configuration/apps/
-  ln -sf $dir_root/parm/jcb-hdas hdas
+  #ln -sf $dir_root/parm/jcb-hdas hdas
+  ln -sf ../../../../../parm/jcb-hdas hdas
   cd $dir_root/sorc/jcb/src/jcb/configuration/
-  ln -sf $dir_root/parm/jcb-algorithms algorithms
+  #ln -sf $dir_root/parm/jcb-algorithms algorithms
+  ln -sf ../../../../../parm/jcb-algorithms algorithms
   cd ${BUILD_DIR}
 fi
 
