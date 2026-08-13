@@ -6,7 +6,7 @@
          obsdatain:
            engine:
              type: H5File
-             obsfile: obs/hafs.t{{HH}}z.conventinoal_osw_ascat_290.nc 
+             obsfile: obs/hafs.t{{HH}}z.conventional_osw_ascat_290.nc 
              missing file action: "warn"
          obsdataout:
            engine:
@@ -46,7 +46,7 @@
            maxvalue: {{MAX_LAT}}
          action:
            name: reduce obs space
-       - filter : Domain Check
+       - filter: Domain Check
          apply at iterations: 0, 1
          where:
          - variable:
@@ -235,6 +235,6 @@
              variable: windNorthward
          action:
            name: reject
-        obs localizations:
-        - localization method: Horizontal Gaspari-Cohn
-          lengthscale: 450e3
+       obs localizations:
+       - localization method: Horizontal Gaspari-Cohn
+         lengthscale: 450e3
